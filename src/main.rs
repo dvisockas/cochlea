@@ -1,6 +1,6 @@
 use std::io::prelude::*;
 use std::io::Cursor;
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 
 fn main() {
   let mut arguments = std::env::args().skip(1);
@@ -9,24 +9,14 @@ fn main() {
     None => { return println!("No command supplied") }
   };
 
+
   if std::path::Path::new(&filename).exists() {
     let mut file = std::fs::File::open(&filename).unwrap();
 
-    // Reading the header
-    let mut chunk_id = vec![0; 4];
-    // let mut rdr: Cursor<Vec<u8>> = std::io::Cursor::new(vec![0; 4]);
-    let mut chunk_size = vec![0; 4];
-    let mut chunk_format = vec![0; 4];
+    let chunk_id = Chunk::new(4, Endian::Big).read(&mut file);
+    let chunk_size = Chunk::new(4, Endian::Little).read(&mut file);
+    let chunk_format = Chunk::new(4, Endian::Big).read(&mut file);
 
-    file.read(&mut chunk_id);
-    // rdr.read_u8::<LittleEndian>();
-    file.read(&mut chunk_size);
-    file.read(&mut chunk_format);
-
-    // file.read_to_end(&mut chunk_id);
-    print("Chunk ID", &chunk_id);
-    printvec(&chunk_size);
-    print("Chunk format", &chunk_format);
 
     // Reading the formatting
     let mut fmt = vec![0; 4];
@@ -81,13 +71,41 @@ fn printvec(vec: &Vec<u8>) {
   println!();
 }
 
-struct Chunk {
-  id: [u8; 4],
-  size: u32
+struct Header {
+  // chunks: [Chunk; 5]
 }
 
-// impl Chunk {
-//   fn new(&self) -> Result<Chunk, std::io::Error> {
-//     let self.data:  = ();
-//   }
-// }
+enum Endian {
+  Little,
+  Big
+}
+
+struct Chunk {
+  size: usize,
+  endian: Endian
+}
+
+impl Chunk {
+  fn new(size: usize, endian: Endian) -> Chunk {
+    Chunk { size: size, endian: endian }
+  }
+
+  fn read(&self, file: &mut std::fs::File) -> u32 {
+    let mut buffer: Vec<u8> = vec![0; self.size];
+    file.read(&mut buffer);
+    let mut rdr = Cursor::new(buffer);
+
+    if self.size == 4 {
+      match self.endian {
+        Endian::Big => {
+          rdr.read_u32::<BigEndian>().unwrap()
+        },
+        Endian::Little => {
+          rdr.read_u32::<LittleEndian>().unwrap()
+        }
+      }
+    } else {
+      rdr.read_u8().unwrap() as u32
+    }
+  }
+}
