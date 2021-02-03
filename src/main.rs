@@ -9,7 +9,6 @@ fn main() {
     None => { return println!("No command supplied") }
   };
 
-
   if std::path::Path::new(&filename).exists() {
     let mut file = std::fs::File::open(&filename).unwrap();
 
@@ -17,38 +16,45 @@ fn main() {
     let chunk_size = Chunk::new(4, Endian::Little).read(&mut file);
     let chunk_format = Chunk::new(4, Endian::Big).read(&mut file);
 
+    let first_sub_id = Chunk::new(4, Endian::Big).read(&mut file);
+    let first_sub_size = Chunk::new(4, Endian::Little).read(&mut file);
 
-    // Reading the formatting
-    let mut fmt = vec![0; 4];
-    let mut subchunk_size = vec![0; 4];
-    let mut audio_format = vec![0; 2];
-    let mut num_channels = vec![0; 2];
-    let mut sample_rate = vec![0; 4];
+    let audio_format = Chunk::new(2, Endian::Little).read(&mut file);
+    let isPCM: bool = audio_format == 1;
 
-    file.read(&mut fmt);
-    file.read(&mut subchunk_size);
-    // chunk_size.reverse();
-    file.read(&mut audio_format);
-    file.read(&mut num_channels);
-    file.read(&mut sample_rate);
+    let num_channels = Chunk::new(2, Endian::Little).read(&mut file);
+    let sample_rate = Chunk::new(4, Endian::Little).read(&mut file);
+    let byte_rate = Chunk::new(4, Endian::Little).read(&mut file);
+    let block_align = Chunk::new(2, Endian::Little).read(&mut file);
+    let bits_per_sample = Chunk::new(2, Endian::Little).read(&mut file);
+    // TODO: Check for non-PCM params
 
-    let mut rdr = Cursor::new(sample_rate);
-    let sample_rate = rdr.read_u32::<LittleEndian>().unwrap();
+    let second_sub_id = Chunk::new(4, Endian::Big).read(&mut file);
+    let second_sub_size = Chunk::new(4, Endian::Little).read(&mut file);
 
-    // sample_rate.reverse();
-    // num_channels.reverse();
+    let mut sample_count = second_sub_size * 8 / bits_per_sample;
 
-    println!("Num channels: {}", to_u32(&num_channels));
-    print("fmt", &fmt);
-    print!("Sample rate: {}Hz", &sample_rate);
+    println!("Audio format: {}", &audio_format);
+    println!("Num channels: {}", &num_channels);
+    println!("Sample rate: {}Hz", &sample_rate);
+    println!("Bits per sample: {}", &bits_per_sample);
+    println!("Byte rate: {}", &byte_rate);
+    println!("Subchunk#2 size: {}", &second_sub_size);
+    println!("Total samples: {}", &sample_count);
 
     // Reading the data
+    // sample_count = 10;
+    let mut buffer: Vec<u32> = vec![0; sample_count as usize];
+    for _x in 0..(sample_count - 1) {
+      let sample = Chunk::new(bits_per_sample as usize, Endian::Little).read(&mut file);
+      println!("{}", sample); // x: i32
+    }
 
+    // Reference values
+    // 21.3623, -15.2588,  12.2070, -18.3105,   3.0518, -15.2588,  12.2070, -15.2588,   6.1035, -15.2588
   } else {
     println!("No such file found");
   }
-
-  println!()
 }
 
 fn to_u32(slice: &[u8]) -> u32 {
@@ -69,10 +75,6 @@ fn printvec(vec: &Vec<u8>) {
     print!("{}.", byte);
   }
   println!();
-}
-
-struct Header {
-  // chunks: [Chunk; 5]
 }
 
 enum Endian {
