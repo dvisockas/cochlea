@@ -43,7 +43,7 @@ fn main() {
     println!("Total samples: {}", &sample_count);
 
     // Reading the data
-    // sample_count = 10;
+    sample_count = 100;
     let mut buffer: Vec<u32> = vec![0; sample_count as usize];
     for _x in 0..(sample_count - 1) {
       let sample = Chunk::new(bits_per_sample as usize, Endian::Little).read(&mut file);
@@ -51,7 +51,7 @@ fn main() {
     }
 
     // Reference values
-    // 21.3623, -15.2588,  12.2070, -18.3105,   3.0518, -15.2588,  12.2070, -15.2588,   6.1035, -15.2588
+    // 7 -5 4 -6 1 -5 4 -5 2 -5 5 -6 3 -3 2 -4 3 -5 5 -6
   } else {
     println!("No such file found");
   }
